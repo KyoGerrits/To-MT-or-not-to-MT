@@ -1,0 +1,3 @@
+This folder contains the dataset with responses from the (anonymous) participants to the questionnaire, via Qualtrics. The Qualtrics questions are also present per modality (A = PE, B = MT, C = HT, and D = ST). 
+
+The analyses and visualisations created in RStudio can be accessed in rmd or html format.
