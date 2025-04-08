@@ -1,0 +1,1204 @@
+---
+title: "Statistical analyses To MT or not to MT"
+author: "Kyo Gerrits and Ana Guerberof Arenas"
+date: "Generated on: `r date()`"
+output:
+  html_document:
+    code_folding: show
+    number_sections: yes
+    toc: yes
+    toc_float:
+      collapsed: no
+      smooth_scroll: yes
+---
+# Loading the libraries
+```{r}
+set.seed(42)
+library(lme4)
+library(tidyverse)
+library(lmtest)
+library(MASS)
+library(nlme)
+library (DHARMa)
+library(sandwich)
+library(lmtest)
+library(lmerTest)
+library(clubSandwich)
+library(car)
+library(glmmTMB)
+library(performance)
+library(dplyr)
+library(ggplot2)
+library(PMCMRplus)
+library(rstatix)
+library(mgcv)
+library(randtests)
+library(parameters)
+library(sjPlot)
+```
+
+# Overview of the data
+```{r}
+## First we load the 'raw' dataset
+df_ST <- read.csv2("Dataset_UCP.csv", row.names = NULL, stringsAsFactors = TRUE)
+df_ST$ErrorCount <- as.factor(df_ST$ErrorCount)
+df_ST$Modality <- as.factor(df_ST$Modality)
+df_ST$Creativity <- as.factor(df_ST$Creativity)
+df_ST$UCP_N <- as.factor(df_ST$UCP_N)
+df_ST$Participant <- as.factor(df_ST$Participant)
+
+#We'll also create a dataset without ST for (combined) analyses of creativity and errors
+df <- df_ST %>%
+  filter(!Modality=="ST")
+df <- droplevels(df)
+
+#Check if the dataset works
+str(df)
+```
+
+# Preprocess the data 
+## TFD
+```{r}
+# Look at the dependent variable TFD according to the three independent variables> ErrorCount, Modality and Creativity
+
+# Errors and TFD
+tapply(df_ST$TFD, df_ST$Modality, summary)
+tapply(df$TFD, df$Creativity, summary)
+tapply(df$TFD, df$ErrorCount, summary)
+
+# Descriptive values
+
+# Summarize the data for Modality
+df_ST %>%
+  group_by(Modality) %>%
+  summarise(
+    count = n(),
+    mean = mean(TFD, na.rm = TRUE),
+    median = median(TFD, na.rm = TRUE),
+    sd = sd(TFD, na.rm = TRUE),
+    min = min(TFD, na.rm = TRUE),
+    max = max(TFD, na.rm = TRUE)
+  )
+
+# Summarize the data for Creativity
+df_ST %>%
+  group_by(Creativity) %>%
+  summarise(
+    count = n(),
+    mean = mean(TFD, na.rm = TRUE),
+    median = median(TFD, na.rm = TRUE),
+    sd = sd(TFD, na.rm = TRUE),
+    min = min(TFD, na.rm = TRUE),
+    max = max(TFD, na.rm = TRUE)
+  )
+
+df %>%
+  group_by(ErrorCount) %>%
+  summarise(
+    count = n(),
+    mean = mean(TFD, na.rm = TRUE),
+    median = median(TFD, na.rm = TRUE),
+    sd = sd(TFD, na.rm = TRUE),
+    min = min(TFD, na.rm = TRUE),
+    max = max(TFD, na.rm = TRUE)
+  )
+
+
+```
+
+## Other dependent variables 
+### FPT
+```{r}
+# Summarize the data for Modality
+df_ST %>%
+  group_by(Modality) %>%
+  summarise(
+    count = n(),
+    mean = mean(First_pass, na.rm = TRUE),
+    median = median(First_pass, na.rm = TRUE),
+    sd = sd(First_pass, na.rm = TRUE),
+    min = min(First_pass, na.rm = TRUE),
+    max = max(First_pass, na.rm = TRUE)
+  )
+
+# Summarize the data for Creativity
+df %>%
+  group_by(Creativity) %>%
+  summarise(
+    count = n(),
+    mean = mean(First_pass, na.rm = TRUE),
+    median = median(First_pass, na.rm = TRUE),
+    sd = sd(First_pass, na.rm = TRUE),
+    min = min(First_pass, na.rm = TRUE),
+    max = max(First_pass, na.rm = TRUE)
+  )
+
+df %>%
+  group_by(ErrorCount) %>%
+  summarise(
+    count = n(),
+    mean = mean(First_pass, na.rm = TRUE),
+    median = median(First_pass, na.rm = TRUE),
+    sd = sd(First_pass, na.rm = TRUE),
+    min = min(First_pass, na.rm = TRUE),
+    max = max(First_pass, na.rm = TRUE)
+  )
+```
+
+### RP
+```{r}
+# Summarize the data for Modality
+df_ST %>%
+  group_by(Modality) %>%
+  summarise(
+    count = n(),
+    mean = mean(Regression, na.rm = TRUE),
+    median = median(Regression, na.rm = TRUE),
+    sd = sd(Regression, na.rm = TRUE),
+    min = min(Regression, na.rm = TRUE),
+    max = max(Regression, na.rm = TRUE)
+  )
+
+# Summarize the data for Creativity
+df %>%
+  group_by(Creativity) %>%
+  summarise(
+     count = n(),
+    mean = mean(Regression, na.rm = TRUE),
+    median = median(Regression, na.rm = TRUE),
+    sd = sd(Regression, na.rm = TRUE),
+    min = min(Regression, na.rm = TRUE),
+    max = max(Regression, na.rm = TRUE)
+  )
+
+df %>%
+  group_by(ErrorCount) %>%
+  summarise(
+    count = n(),
+    mean = mean(Regression, na.rm = TRUE),
+    median = median(Regression, na.rm = TRUE),
+    sd = sd(Regression, na.rm = TRUE),
+    min = min(Regression, na.rm = TRUE),
+    max = max(Regression, na.rm = TRUE)
+  )
+```
+
+### FC
+```{r}
+# Summarize the data for Modality
+df_ST %>%
+  group_by(Modality) %>%
+  summarise(
+    count = n(),
+    mean = mean(Fix_count, na.rm = TRUE),
+    sd = sd(Fix_count, na.rm = TRUE),
+    median = median(Fix_count, na.rm = TRUE),
+    min = min(Fix_count, na.rm = TRUE),
+    max = max(Fix_count, na.rm = TRUE)
+  )
+
+# Summarize the data for Creativity
+df %>%
+  group_by(Creativity) %>%
+  summarise(
+     count = n(),
+    mean = mean(Fix_count, na.rm = TRUE),
+    sd = sd(Fix_count, na.rm = TRUE),
+    median = median(Fix_count, na.rm = TRUE),
+    min = min(Fix_count, na.rm = TRUE),
+    max = max(Fix_count, na.rm = TRUE)
+  )
+
+df %>%
+  group_by(ErrorCount) %>%
+  summarise(
+    count = n(),
+    mean = mean(Fix_count, na.rm = TRUE),
+    sd = sd(Fix_count, na.rm = TRUE),
+    median = median(Fix_count, na.rm = TRUE),
+    min = min(Fix_count, na.rm = TRUE),
+    max = max(Fix_count, na.rm = TRUE)
+  )
+```
+
+### RC
+```{r}
+# Summarize the data for Modality
+df_ST %>%
+  group_by(Modality) %>%
+  summarise(
+    count = n(),
+    mean = mean(Reg_Count, na.rm = TRUE),
+    sd = sd(Reg_Count, na.rm = TRUE),
+    median = median(Reg_Count, na.rm = TRUE),
+    min = min(Reg_Count, na.rm = TRUE),
+    max = max(Reg_Count, na.rm = TRUE)
+  )
+
+# Summarize the data for Creativity
+df %>%
+  group_by(Creativity) %>%
+  summarise(
+     count = n(),
+    mean = mean(Reg_Count, na.rm = TRUE),
+    sd = sd(Reg_Count, na.rm = TRUE),
+    median = median(Reg_Count, na.rm = TRUE),
+    min = min(Reg_Count, na.rm = TRUE),
+    max = max(Reg_Count, na.rm = TRUE)
+  )
+
+df %>%
+  group_by(ErrorCount) %>%
+  summarise(
+    count = n(),
+    mean = mean(Reg_Count, na.rm = TRUE),
+    sd = sd(Reg_Count, na.rm = TRUE),
+    median = median(Reg_Count, na.rm = TRUE),
+    min = min(Reg_Count, na.rm = TRUE),
+    max = max(Reg_Count, na.rm = TRUE)
+  )
+```
+# Graphics
+## Boxplots
+```{r}
+
+boxplot(TFD ~ Modality, data = df_ST,
+        xlab = "Modality", 
+        ylab = "Fixation Duration", 
+        main = "Boxplot of Fixation Duration by Modality",
+        col = c("lightblue", "lightgreen", "pink"))
+
+
+boxplot(TFD ~ Creativity, data = df,
+        xlab = "Creativity", 
+        ylab = "Fixation Duration", 
+        main = "Boxplot of Fixation Duration by Creativity",
+        col = c("lightblue", "lightgreen", "pink"))
+
+boxplot(TFD ~ ErrorCount, data = df,
+        xlab = "Error Segments", 
+        ylab = "Fixation Duration", 
+        main = "Boxplot of Fixation Duration by Errors",
+        col = c("lightblue", "lightgreen"))
+
+#Because these boxplots are a little hard to interpret because most data is on the low side with some outliers, we will log-transform the data to create boxplots that are easier to interpret and make more sense visually
+
+#First we'll log-transform the dependent variable TFD
+df_ST$TFD_log <- log(df_ST$TFD+1)
+df$TFD_log <- log (df$TFD+1)
+
+#Then we'll create new boxplots
+boxplot(TFD_log ~ Modality, data = df_ST,
+        xlab = "Modality", 
+        ylab = "Fixation Duration", 
+        main = "Boxplot of Fixation Duration by Modality (log-transformed)",
+        col = c("lightblue", "lightgreen", "pink"))
+
+
+boxplot(TFD_log ~ Creativity, data = df,
+        xlab = "Creativity", 
+        ylab = "Fixation Duration", 
+        main = "Boxplot of Fixation Duration by Creativity (log-transformed)",
+        col = c("lightblue", "lightgreen", "pink"))
+
+boxplot(TFD_log ~ ErrorCount, data = df,
+        xlab = "Error Segments", 
+        ylab = "Fixation Duration", 
+        main = "Boxplot of Fixation Duration by Error (log-transformed)",
+        col = c("lightblue", "lightgreen"))
+
+#We also want to see the results per Modality, so first we'll first check out the boxplots for HT only
+
+df_HT <- df_ST %>%
+  filter(Modality=="HT")
+df_HT <- droplevels(df_HT)
+
+df_HT$TFD_log <- log(df_HT$TFD+1)
+
+boxplot(TFD_log ~ Creativity, data = df_HT,
+        xlab = "Creativity", 
+        ylab = "TFD (log-transformed, in ms.)",
+        main = "Boxplot of Fixation Duration by Creativity for HT only",
+        col = c("lightblue", "lightgreen", "pink"))
+
+boxplot(TFD_log ~ ErrorCounts, data = df_HT,
+        xlab = "Errors", 
+        ylab = "TFD  (log-transformed, in ms.)", 
+        main = "Boxplot of Fixation Duration by Creativity for HT only", 
+        col = c("lightblue", "lightgreen", "pink"))
+
+
+#Now for MT
+df_MT <- df_ST %>%
+  filter(Modality=="MT")
+df_MT <- droplevels(df_MT)
+
+df_MT$TFD_log <- log(df_MT$TFD+1)
+
+boxplot(TFD_log ~ Creativity, data = df_MT,
+        xlab = "Creativity", 
+        ylab = "TFD  (log-transformed, in ms.)", 
+        main = "Boxplot of Fixation Duration by Creativity for MT only",
+        col = c("lightblue", "lightgreen", "pink"))
+
+boxplot(TFD_log ~ ErrorCounts, data = df_MT,
+        xlab = "Errors", 
+        ylab = "TFD  (log-transformed, in ms.)", 
+        main = "Boxplot of Fixation Duration by Creativity for MT only",
+        col = c("lightblue", "lightgreen", "pink"))
+
+#And finally for PE
+df_PE <- df_ST %>%
+  filter(Modality=="PE")
+df_PE <- droplevels(df_PE)
+
+df_PE$TFD_log <- log(df_PE$TFD+1)
+
+boxplot(TFD_log ~ Creativity, data = df_PE,
+        xlab = "Creativity", 
+        ylab = "TFD  (log-transformed, in ms.)", 
+        main = "Boxplot of Fixation Duration by Creativity for PE only",
+        col = c("lightblue", "lightgreen", "pink"))
+
+boxplot(TFD_log ~ ErrorCounts, data = df_PE,
+        xlab = "Errors", 
+        ylab = "TFD (log-transformed, in ms.)", 
+        main = "Boxplot of Fixation Duration by Creativity for PE only",
+        col = c("lightblue", "lightgreen", "pink"))
+
+
+
+```
+
+# Histogram for dependent variable
+```{r}
+hist(df$TFD)
+
+# This is skewed so I will try a logarithmic function. There are multiple zeroes in the dataset, to keep them as such, we'll add 1 to the data before the log-transformations
+
+# Apply log transformation
+df$TFD_log <- log(df$TFD+1)
+hist(df$TFD_log)
+
+```
+
+```{r}
+#The distribution looks better, but the zeros are an outlier, so we'll take them out of the dataset and analyse them separately below.
+
+#First create the new dataset
+df_no_0 <- df %>%
+  filter(!TFD==0)
+
+#Now let's look at the histogram of the new dataset
+hist(df_no_0$TFD_log)
+
+```
+
+
+```{r}
+#The log-transformed histogram looks much better, but we'll check normalcy with the Shapiro-Wilk test first
+
+# First the errors
+normality_results_error <- df_no_0 %>%
+  group_by(ErrorCount) %>%
+  summarise(
+    p_value = shapiro.test(TFD_log)$p.value
+  )
+
+normality_results_error
+
+# Then we'll look at modality
+normality_results_modality <- df_no_0 %>%
+  group_by(Modality) %>%
+  summarise(
+    p_value = shapiro.test(TFD_log)$p.value
+  )
+
+normality_results_modality
+
+# Finally we'll look at creativity
+normality_results_creativity <- df_no_0 %>%
+  group_by(Creativity) %>%
+  summarise(
+    p_value = shapiro.test(TFD_log)$p.value
+  )
+
+normality_results_creativity
+
+
+```
+
+# Creating GAM models
+
+## Total fixation duration
+
+```{r}
+#The p-values are almost all well-below 0.05, so we cannot use linear mixed-effects models. As the data has repeated measures and we do not want to aggregate those unnecessarily, we'll first try generalized additive mixed models (GAMM). These models are more robust and can handle violations of linear mixed-effect model assumptions such as non-normality. 
+
+#First we set contrasts (symmetry coding, as we have no reference group).
+levels(df_no_0$Modality) #To check we have the correct levels
+contrast.mod <- cbind(c(+2/3, -1/3, -1/3), c(-1/3, +2/3, -1/3))
+colnames(contrast.mod) <- c("+HT-PEMT", "+MT-PEHT")
+contrasts(df_no_0$Modality) <- contrast.mod
+contrasts(df_no_0$Modality) #To check the contrasts
+## For the UCP, we will contrast both UCP options (CS and Rep) to the units that are not UCPs, and then compare CSs to Reps specifically
+levels(df_no_0$Creativity) #To check we have the correct levels
+contrast.UCP <- cbind (c(+2/3, -1/3, -1/3), c(-1/3, -1/3, +2/3))
+colnames(contrast.UCP) <- c("+CS", "+Rep")
+contrasts(df_no_0$Creativity) <- contrast.UCP
+contrasts(df_no_0$Creativity) #To check the contrasts
+## We will also create contrasts for ErrorCounts
+levels(df_no_0$ErrorCount) #To check we have the correct levels
+contrast.mod <- cbind(c(-0.5, +0.5))
+colnames(contrast.mod) <- c("+Error-Not")
+contrasts(df_no_0$ErrorCount) <- contrast.mod
+contrasts(df_no_0$ErrorCount) #To check the contrasts
+
+#We will use our log-transformed dependent variable, three independent variables and we add two random effects for participant and the unit. We use the 'scat' (scaled t-model) as family as this is well-suited for distributions with heavy tails on both sides.
+
+model_TFD <- bam(TFD_log ~ Modality * Creativity * ErrorCount + 
+             s(Participant, bs = "re") + s(UCP_N, bs = "re"), 
+             family = scat(link = "log"), data = df_no_0)
+
+summary(model_TFD)
+```
+
+### Assumptions testing
+```{r}
+#Although suited for data that isn't completely normally distributed, GAMMs also have assumptions
+#We'll check heteroscedasticity
+plot(model_TFD, residuals = TRUE, pch = 19, cex = 0.5)
+#This looks good, then we'll check multicollinearity
+vif(lm(TFD_log ~ Modality + Creativity + ErrorCount, data = df))
+#This also looks good. As a last and overall check, we'll check the general fit
+gam.check(model_TFD)
+
+#This all looks good, so we can use the output of the model
+```
+
+```{r}
+#For completeness sake, we'll also include the other contrasts for modality (+PE-MTHT) and a contrast in which we specifically contrast HT and PE as these had little difference in previous studies
+levels(df_no_0$Modality) #To check we have the correct levels
+contrast.mod <- cbind(c(-1/3, -1/3, +2/3), c(+1/2, 0, -1/2))
+colnames(contrast.mod) <- c("+PE-MTHT", "+HT-PE")
+contrasts(df_no_0$Modality) <- contrast.mod
+contrasts(df_no_0$Modality) #To check the contrasts
+model_TFD <- bam(TFD_log ~ Modality * Creativity * ErrorCount + 
+             s(Participant, bs = "re") + s(UCP_N, bs = "re"), 
+             family = scat(link = "log"), data = df_no_0)
+summary(model_TFD)
+```
+
+## First pass
+```{r}
+#We'll do a similar thing for first pass. First, here too we will look at the histograms.
+hist(df_no_0$First_pass)
+df_no_0$First_pass_log <- log(df_no_0$First_pass+1)
+hist(df_no_0$First_pass_log)
+
+model_First_pass <- bam(First_pass_log ~ Modality * Creativity * ErrorCount  + 
+             s(Participant, bs = "re") + s(UCP_N, bs = "re") + s(N, bs = "re"), 
+             family = gaussian(link = "identity"), data = df_no_0)
+summary(model_First_pass)
+```
+
+## Regression
+
+```{r}
+#And for regression
+hist(df_no_0$Regression)
+df_no_0$Regression_log <- log(df_no_0$Regression+1)
+hist(df_no_0$Regression_log)
+
+model_Regression <- bam(Regression_log ~ Modality * Creativity * ErrorCount + 
+             s(Participant, bs = "re") + s(UCP_N, bs = "re") + s(N, bs = "re"), 
+             family = scat(link = "log"), data = df_no_0)
+summary(model_Regression)
+
+#Sadly, the explained deviance in both models is around 27-28%, which is a little low. Instead, we'll use non-parametric tests for the other measurements.
+
+```
+
+## Fixation count
+```{r}
+#And for regression
+hist(df_no_0$Fix_count)
+df_no_0$FC_log <- log(df_no_0$Fix_count+1)
+hist(df_no_0$Regression_log)
+
+model_FC <- bam(FC_log ~ Modality * Creativity * ErrorCount + 
+             s(Participant, bs = "re") + s(UCP_N, bs = "re") + s(N, bs = "re"), 
+             family = scat(link = "log"), data = df_no_0)
+summary(model_FC)
+
+#Sadly, the explained deviance in both models is around 27-28%, which is a little low. Instead, we'll use non-parametric tests for the other measurements.
+
+```
+
+```{r}
+plot(model_FC, residuals = TRUE, pch = 19, cex = 0.5)
+vif(lm(FC_log ~ Modality + Creativity + ErrorCount, data = df_no_0))
+gam.check(model_FC)
+
+#The linear vs predicted and repsonse vs fitted values clearly shows trends and shows that this type of count data is not suited for the GAM model. We will run non-parametric tests on this DV too.
+```
+
+## Regression count
+```{r}
+#And for regression count
+hist(df_no_0$Reg_Count)
+df_no_0$RC_log <- log(df_no_0$Reg_Count+1)
+hist(df_no_0$Regression_log)
+
+model_Regression <- bam(RC_log ~ Modality * Creativity * ErrorCount + 
+             s(Participant, bs = "re") + s(UCP_N, bs = "re"), 
+             family = scat(link = "identity"), data = df_no_0)
+summary(model_Regression)
+
+#Sadly, the explained deviance in both models is around 27-28%, which is a little low. Instead, we'll use non-parametric tests for the other measurements.
+
+```
+
+```{r}
+plot(model_Regression, residuals = TRUE, pch = 19, cex = 0.5)
+vif(lm(RC_log ~ Modality + Creativity + ErrorCount, data = df_no_0))
+gam.check(model_Regression)
+#The linear vs predicted and repsonse vs fitted values clearly shows trends and shows that this type of count data is not suited for the GAM model. We will run non-parametric tests on this DV too.
+```
+
+# The zero analyses
+## Create dataset
+```{r}
+#Before doing the non-parametric tests, we will finish the analysis of the GAM model by separately analysing the units with zero-measurements which were excluded from the analysis
+
+#We'll first create the dataset with zero measurements
+zero_data <- df %>%
+  filter(TFD == 0)
+
+zero_data
+```
+
+
+## Contigency tables
+```{r}
+#Then we'll create contingency tables of the amount of zeros
+contingency_table_zero <- table(zero_data$Creativity, zero_data$Modality, zero_data$ErrorCount)
+
+contingency_table_zero
+``` 
+
+```{r}
+#The differences between errors and creativity seems pretty big, but not all combinations are equally present in the data (e.g. much more non-UCPs than CS), so we'll create relative values. To do so we'll first have an overview of the total number of units per category.
+contingency_table_all_measures <- table(df$Creativity, df$Modality, df$ErrorCount)
+contingency_table_all_measures
+```
+```{r}
+#We'll create a general relative table to show how often zero measures appear across the data
+relative_table <- contingency_table_zero/contingency_table_all_measures
+relative_table
+```
+
+## Analysis
+### Per independent variable
+#### Modality
+```{r}
+#We'll now use Chi-Square tests to see if the distribution of zeros is significant. We begin by looking at the modalities.
+#First we'll create a new relative table with zero measures only across modalities
+
+contingency_table_mod_0 <- table(zero_data$Modality)
+contingency_table_mod_all <- table(df$Modality)
+contingency_table_mod <- (contingency_table_mod_0/contingency_table_mod_all)*100
+contingency_table_mod
+
+contingency_table_mod_0
+contingency_table_mod_all
+
+# We will then check whether this distribution is significant, using Chi-Square Goodness-of-Fit Tests.
+chisq.test(contingency_table_mod)
+```
+
+#### Creativity
+```{r}
+contingency_table_crea_0 <- table(zero_data$Creativity)
+contingency_table_crea_all <- table(df$Creativity)
+contingency_table_crea <- (contingency_table_crea_0/contingency_table_crea_all)*100
+contingency_table_crea
+
+chisq.test(contingency_table_crea)
+```
+
+#### Errors
+```{r}
+contingency_table_error_0 <- table(zero_data$ErrorCount)
+contingency_table_error_all <- table(df$ErrorCount)
+contingency_table_error <- (contingency_table_error_0/contingency_table_error_all)*100
+contingency_table_error
+
+chisq.test(contingency_table_error)
+```
+### For combinations of variables
+### Modality and Creativity
+```{r}
+con_table_mod_crea_0 <- table(zero_data$Modality, zero_data$Creativity)
+con_table_mod_crea_all <- table(df$Modality, df$Creativity)
+con_table_mod_crea <- con_table_mod_crea_0/con_table_mod_crea_all 
+con_table_mod_crea 
+
+chisq.test(con_table_mod_crea)
+```
+
+### Modality and Errors
+```{r}
+con_table_mod_err_0 <- table(zero_data$Modality, zero_data$ErrorCount)
+con_table_mod_err_all <- table(df$Modality, df$ErrorCount)
+con_table_mod_err <- con_table_mod_err_0/con_table_mod_err_all 
+con_table_mod_err 
+
+chisq.test(con_table_mod_err)
+```
+
+### Creativity and Errors
+```{r}
+con_table_crea_err_0 <- table(zero_data$Creativity, zero_data$ErrorCount)
+con_table_crea_err_all <- table(df$Creativity, df$ErrorCount)
+con_table_crea_err <- con_table_crea_err_0/con_table_crea_err_all 
+con_table_crea_err 
+
+chisq.test(con_table_crea_err)
+```
+### All variables
+```{r}
+#As we have three variables, we cannot analyse all variables together, but we can use one to divide the other two. We'll begin with Modality
+con_table_0 <- table(zero_data$Creativity, zero_data$ErrorCount, zero_data$Modality)
+con_table_all <- table(df$Creativity, df$ErrorCount, df$Modality)
+con_table <- con_table_0/con_table_all
+con_table
+
+chisq.test(con_table[,,1])
+chisq.test(con_table[,,2])
+chisq.test(con_table[,,3])
+
+#Then we'll do the same for Creativity
+con_table_0 <- table(zero_data$ErrorCount, zero_data$Modality, zero_data$Creativity)
+con_table_all <- table(df$ErrorCount, df$Modality, df$Creativity)
+con_table <- con_table_0/con_table_all
+con_table
+
+chisq.test(con_table[,,1])
+chisq.test(con_table[,,2])
+chisq.test(con_table[,,3])
+
+#And for errors
+con_table_0 <- table(zero_data$Modality, zero_data$Creativity, zero_data$ErrorCount)
+con_table_all <- table(df$Modality, df$Creativity, df$ErrorCount)
+con_table <- con_table_0/con_table_all
+con_table
+
+chisq.test(con_table[,,1])
+chisq.test(con_table[,,2])
+```
+
+# Non-parametric tests
+## Loading and aggregating the dataset
+```{r}
+#As non-parametric tests only work on aggregated data (either per participant, or when they handle repeated measures as Friedman's Test does, per condition), we will first aggregate the data. For this, we'll use the dataset per word instead of per unit, as the latter is already aggregated and double aggregration runs the risk of skewing the data unnecessarily. 
+df_words <- read.csv2("Dataset_word_csv.csv", row.names = NULL, stringsAsFactors = TRUE)
+```
+
+### Descriptive statistics per word
+```{r}
+#Before aggregating the data, we also want to look at the descriptive results for the dependent variables across our independent variables on our word-based dataset (complementing the descriptive statistics on the unit-based dataset above)
+
+# Summarize the data for Modality
+df_words %>%
+  group_by(Modality) %>%
+  summarise(
+    mean = mean(TFD, na.rm = TRUE),
+    sd = sd(TFD, na.rm = TRUE),
+    median = median(TFD, na.rm = TRUE),
+    min = min(TFD, na.rm = TRUE),
+    max = max(TFD, na.rm = TRUE)
+  )
+
+# Summarize the data for Creativity
+df_words %>%
+  group_by(Creativity) %>%
+  summarise(
+    mean = mean(TFD, na.rm = TRUE),
+    sd = sd(TFD, na.rm = TRUE),
+    median = median(TFD, na.rm = TRUE),
+    min = min(TFD, na.rm = TRUE),
+    max = max(TFD, na.rm = TRUE)
+  )
+df_words %>%
+  group_by(ErrorCount) %>%
+  summarise(
+    mean = mean(TFD, na.rm = TRUE),
+    sd = sd(TFD, na.rm = TRUE),
+    median = median(TFD, na.rm = TRUE),
+    min = min(TFD, na.rm = TRUE),
+    max = max(TFD, na.rm = TRUE)
+  )
+
+df_words$TFD_log <- log(df_words$TFD+1)
+
+boxplot(TFD ~ Modality, data = df_words,
+        xlab = "Modality", 
+        ylab = "TFD (in ms.)", 
+        main = "Boxplot of Fixation Duration by Modality",
+        col = c("lightblue", "lightgreen", "pink"))
+
+df_words_no_ST <- df_words%>%
+   filter(!Modality=="ST")
+
+df_words_no_ST <- droplevels(df_words_no_ST)
+  
+
+boxplot(TFD ~ Creativity, data = df_words_no_ST,
+        xlab = "Creativity", 
+        ylab = "TFD (in ms.)", 
+        main = "Boxplot of Fixation Duration by Modality",
+        col = c("lightblue", "lightgreen", "pink"))
+
+boxplot(TFD ~ ErrorCount, data = df_words_no_ST,
+        xlab = "Errors", 
+        ylab = "TFD (in ms.)", 
+        main = "Boxplot of Fixation Duration by Modality",
+        col = c("lightblue", "lightgreen", "pink"))
+
+```
+
+#### FPT
+```{r}
+# Summarize the data for Modality
+df_words %>%
+  group_by(Modality) %>%
+  summarise(
+    mean = mean(First_pass, na.rm = TRUE),
+    sd = sd(First_pass, na.rm = TRUE),
+     median = median(First_pass, na.rm = TRUE),
+    min = min(First_pass, na.rm = TRUE),
+    max = max(First_pass, na.rm = TRUE)
+  )
+
+# Summarize the data for Creativity
+df_words %>%
+  group_by(Creativity) %>%
+  summarise(
+    mean = mean(First_pass, na.rm = TRUE),
+    sd = sd(First_pass, na.rm = TRUE),
+    median = median(First_pass, na.rm = TRUE),
+    min = min(First_pass, na.rm = TRUE),
+    max = max(First_pass, na.rm = TRUE)
+  )
+
+df_words %>%
+  group_by(ErrorCount) %>%
+  summarise(
+    mean = mean(First_pass, na.rm = TRUE),
+    sd = sd(First_pass, na.rm = TRUE),
+    median = median(First_pass, na.rm = TRUE),
+    min = min(First_pass, na.rm = TRUE),
+    max = max(First_pass, na.rm = TRUE)
+  )
+```
+
+#### RP
+```{r}
+# Summarize the data for Modality
+df_words %>%
+  group_by(Modality) %>%
+  summarise(
+    mean = mean(Regression, na.rm = TRUE),
+    sd = sd(Regression, na.rm = TRUE),
+    median = median(Regression, na.rm = TRUE),
+    min = min(Regression, na.rm = TRUE),
+    max = max(Regression, na.rm = TRUE)
+  )
+
+# Summarize the data for Creativity
+df_words %>%
+  group_by(Creativity) %>%
+  summarise(
+    mean = mean(Regression, na.rm = TRUE),
+    sd = sd(Regression, na.rm = TRUE),
+    median = median(Regression, na.rm = TRUE),
+    min = min(Regression, na.rm = TRUE),
+    max = max(Regression, na.rm = TRUE)
+  )
+
+df_words %>%
+  group_by(ErrorCount) %>%
+  summarise(
+    mean = mean(Regression, na.rm = TRUE),
+    sd = sd(Regression, na.rm = TRUE),
+     median = median(Regression, na.rm = TRUE),
+    min = min(Regression, na.rm = TRUE),
+    max = max(Regression, na.rm = TRUE)
+  )
+```
+
+### FC
+```{r}
+# Summarize the data for Modality
+df_words %>%
+  group_by(Modality) %>%
+  summarise(
+    mean = mean(Fix_count, na.rm = TRUE),
+    sd = sd(Fix_count, na.rm = TRUE),
+    median = median(Fix_count, na.rm = TRUE),
+    min = min(Fix_count, na.rm = TRUE),
+    max = max(Fix_count, na.rm = TRUE)
+  )
+
+# Summarize the data for Creativity
+df_words %>%
+  group_by(Creativity) %>%
+  summarise(
+    mean = mean(Fix_count, na.rm = TRUE),
+    sd = sd(Fix_count, na.rm = TRUE),
+    median = median(Fix_count, na.rm = TRUE),
+    min = min(Fix_count, na.rm = TRUE),
+    max = max(Fix_count, na.rm = TRUE)
+  )
+
+df_words %>%
+  group_by(ErrorCount) %>%
+  summarise(
+    mean = mean(Fix_count, na.rm = TRUE),
+    sd = sd(Fix_count, na.rm = TRUE),
+    median = median(Fix_count, na.rm = TRUE),
+    min = min(Fix_count, na.rm = TRUE),
+    max = max(Fix_count, na.rm = TRUE)
+  )
+```
+
+### RC
+```{r}
+# Summarize the data for Modality
+df_words %>%
+  group_by(Modality) %>%
+  summarise(
+    mean = mean(Reg_Count, na.rm = TRUE),
+    sd = sd(Reg_Count, na.rm = TRUE),
+    median = median(Reg_Count, na.rm = TRUE),
+    min = min(Reg_Count, na.rm = TRUE),
+    max = max(Reg_Count, na.rm = TRUE)
+  )
+
+# Summarize the data for Creativity
+df_words %>%
+  group_by(Creativity) %>%
+  summarise(
+    mean = mean(Reg_Count, na.rm = TRUE),
+    sd = sd(Reg_Count, na.rm = TRUE),
+    median = median(Reg_Count, na.rm = TRUE),
+    min = min(Reg_Count, na.rm = TRUE),
+    max = max(Reg_Count, na.rm = TRUE)
+  )
+
+df_words %>%
+  group_by(ErrorCount) %>%
+  summarise(
+    mean = mean(Reg_Count, na.rm = TRUE),
+    sd = sd(Reg_Count, na.rm = TRUE),
+    median = median(Reg_Count, na.rm = TRUE),
+    min = min(Reg_Count, na.rm = TRUE),
+    max = max(Reg_Count, na.rm = TRUE)
+  )
+```
+
+### Aggregating for modality
+```{r}
+#We'll create one aggregation for overview to see results per modality
+df_agg_mod_overview <- df_words %>%
+  group_by(Modality) %>%
+  summarize(mean_TFD = mean(TFD, na.rm=TRUE),
+            mean_First_pass = mean(First_pass, na.rm = TRUE),
+            mean_Regression = mean(Regression, na.rm = TRUE),
+            mean_Fix_count = mean(Fix_count, na.rm = TRUE),
+            mean_Reg_count = mean (Reg_Count, na.rm = TRUE)
+            )
+df_agg_mod_overview
+
+#We'll create one aggregated dataset for modality per participant
+df_agg_mod <- df_words %>%
+  group_by(Participant, Modality) %>%
+  summarize(mean_TFD = mean(TFD, na.rm=TRUE),
+            mean_First_pass = mean(First_pass, na.rm = TRUE),
+            mean_Regression = mean(Regression, na.rm = TRUE),
+            mean_Fix_count = mean(Fix_count, na.rm = TRUE),
+            mean_Reg_count = mean (Reg_Count, na.rm = TRUE)
+            )
+df_agg_mod
+
+#We'll also create one dataset with median measures as it is less affected by outliers or skews in the data
+df_agg_mod_med <- df_words %>%
+  group_by(Participant, Modality) %>%
+  summarize(med_TFD = median(TFD, na.rm=TRUE),
+            med_First_pass = median(First_pass, na.rm = TRUE),
+            med_Regression = median(Regression, na.rm = TRUE),
+            med_Fix_count = median(Fix_count, na.rm = TRUE),
+            med_Reg_count = median(Reg_Count, na.rm = TRUE)
+            )
+df_agg_mod_med
+```
+
+### Aggregating for creativity
+```{r}
+#We will first remove ST datapoints from the dataset, as creativity (and errors) are not coded for the ST modality.
+df <- df_words %>%
+  filter(!Modality=="ST")
+df <- droplevels(df)
+
+
+#Creativity is now coded in CS, Reproduction and Not. It will also be interesting to see differences between UCP and Not and types of UCP. For this we'll create the relevant columns first.
+df$UCP_YN <- factor(ifelse(df$Creativity == "Non-UCP", "No", "Yes")) #For whether a word is a UCP or Not
+df$Type_of_UCP <- factor(ifelse(df$Creativity == "CS", "CS",
+                         ifelse(df$Creativity == "Reproduction", "Rep", NA))) #To compare CS and Reproductions
+
+#We will create both a dataframe in which we also combine the modalities to give a good overview of the results per modality. We then create dataframes in which the modalities are also divided across participants for our non-parametric tests.
+
+#Like with modality, we'll have overview dataframe with data only grouped by creativity (and by modality and creativity) for understanding the data better ourselves
+
+df_agg_creativity_overview <- df %>%
+  group_by(Creativity) %>%
+  summarize(mean_TFD = mean(TFD, na.rm=TRUE),
+            mean_First_pass = mean(First_pass, na.rm = TRUE),
+            mean_Regression = mean(Regression, na.rm = TRUE),
+            mean_Fix_count = mean(Fix_count, na.rm = TRUE),
+            mean_Reg_count = mean (Reg_Count, na.rm = TRUE)
+  )
+df_agg_creativity_overview
+
+
+df_agg_creativity_overview_mod <- df_words %>%
+  group_by(Modality, Creativity) %>%
+  summarize(mean_TFD = mean(TFD, na.rm=TRUE),
+            mean_First_pass = mean(First_pass, na.rm = TRUE),
+            mean_Regression = mean(Regression, na.rm = TRUE),
+            mean_Fix_count = mean(Fix_count, na.rm = TRUE),
+            mean_Reg_count = mean (Reg_Count, na.rm = TRUE)
+  )
+df_agg_creativity_overview_mod
+
+
+#Then we'll have the dataframe for analyses of creativity
+df_agg_creativity <- df %>%
+  group_by(Participant, Modality, Creativity) %>%
+  summarize(mean_TFD = mean(TFD, na.rm=TRUE),
+            mean_First_pass = mean(First_pass, na.rm = TRUE),
+            mean_Regression = mean(Regression, na.rm = TRUE),
+            mean_Fix_count = mean(Fix_count, na.rm = TRUE),
+            mean_Reg_count = mean (Reg_Count, na.rm = TRUE)
+            )
+df_agg_creativity
+
+#We'll have a dataframe in which creativity is divided in either being UCP (CS & Rep) or not. 
+df_agg_creativity_UCP <- df %>%
+  group_by(Participant, Modality, UCP_YN) %>%
+  summarize(mean_TFD = mean(TFD, na.rm=TRUE),
+            mean_First_pass = mean(First_pass, na.rm = TRUE),
+            mean_Regression = mean(Regression, na.rm = TRUE),
+            mean_Fix_count = mean(Fix_count, na.rm = TRUE),
+            mean_Reg_count = mean (Reg_Count, na.rm = TRUE)
+            )
+df_agg_creativity_UCP
+
+#Lastly, we'll also have a dataframe in which we compare CS against Rep
+df_agg_creativity_Type <- df %>%
+  group_by(Participant, Modality, Type_of_UCP) %>%
+  summarize(mean_TFD = mean(TFD, na.rm=TRUE),
+            mean_First_pass = mean(First_pass, na.rm = TRUE),
+            mean_Regression = mean(Regression, na.rm = TRUE),
+            mean_Fix_count = mean(Fix_count, na.rm = TRUE),
+            mean_Reg_count = mean (Reg_Count, na.rm = TRUE)
+            )
+df_agg_creativity_Type
+
+```
+
+### Aggregating for errors
+```{r}
+df_agg_errorcount <- df %>%
+  group_by(Participant, Modality, ErrorCount) %>%
+  summarize(mean_TFD = mean(TFD, na.rm=TRUE),
+            mean_First_pass = mean(First_pass, na.rm = TRUE),
+            mean_Regression = mean(Regression, na.rm = TRUE),
+            mean_Fix_count = mean(Fix_count, na.rm = TRUE),
+            mean_Reg_count = mean (Reg_Count, na.rm = TRUE)
+            )
+df_agg_errorcount
+
+df_agg_errorseverity <- df %>%
+  group_by(Participant, Modality, Severity) %>%
+  summarize(mean_TFD = mean(TFD, na.rm=TRUE),
+            mean_First_pass = mean(First_pass, na.rm = TRUE),
+            mean_Regression = mean(Regression, na.rm = TRUE),
+            mean_Fix_count = mean(Fix_count, na.rm = TRUE),
+            mean_Reg_count = mean (Reg_Count, na.rm = TRUE)
+            )
+df_agg_errorseverity
+
+df_agg_errortype <- df %>%
+  group_by(Participant, Modality, Error_Type) %>%
+  summarize(mean_TFD = mean(TFD, na.rm=TRUE),
+            mean_First_pass = mean(First_pass, na.rm = TRUE),
+            mean_Regression = mean(Regression, na.rm = TRUE),
+            mean_Fix_count = mean(Fix_count, na.rm = TRUE),
+            mean_Reg_count = mean (Reg_Count, na.rm = TRUE)
+            )
+df_agg_errortype
+
+```
+
+## Analyses
+### Modality 
+```{r}
+#Modality is the only between-subject variable we have and is analysed with a kruskal-wallis test
+kruskal.test(df_agg_mod$mean_TFD, df_agg_mod$Modality)
+kruskal.test(df_agg_mod$mean_First_pass, df_agg_mod$Modality)
+kruskal.test(df_agg_mod$mean_Regression, df_agg_mod$Modality)
+kruskal.test(df_agg_mod$mean_Fix_count, df_agg_mod$Modality)
+kruskal.test(df_agg_mod$mean_Reg_count, df_agg_mod$Modality)
+
+#We'll see if there are any results when using medians instead of means
+kruskal.test(df_agg_mod_med$med_TFD, df_agg_mod_med$Modality)
+kruskal.test(df_agg_mod_med$med_First_pass, df_agg_mod_med$Modality)
+kruskal.test(df_agg_mod_med$med_Regression, df_agg_mod_med$Modality)
+kruskal.test(df_agg_mod_med$med_Fix_count, df_agg_mod_med$Modality)
+kruskal.test(df_agg_mod_med$med_Reg_count, df_agg_mod_med$Modality)
+```
+
+### Creativity
+#### Overall
+```{r}
+friedman.test (mean_TFD ~ Creativity | Participant, data=df_agg_creativity)
+friedman.test (mean_First_pass ~ Creativity | Participant, data=df_agg_creativity)
+friedman.test (mean_Regression ~ Creativity | Participant, data=df_agg_creativity)
+friedman.test (mean_Fix_count ~ Creativity | Participant, data=df_agg_creativity)
+friedman.test (mean_Reg_count ~ Creativity | Participant, data=df_agg_creativity)
+
+#Total fixation durtion and first pass have significant results. To analyse these further we'll do Wilcoxon rank sum test with Holm-Bonferroni correction as post-hoc tests.
+
+pairwise.wilcox.test(df_agg_creativity$mean_TFD, df_agg_creativity$Creativity, p.adj="holm")
+pairwise.wilcox.test(df_agg_creativity$mean_First_pass, df_agg_creativity$Creativity, p.adj="holm")
+
+```
+
+#### Comparing UCPs and not
+```{r}
+#We will use Mann Whitney U test on the dataset with a binary division for creativity (UCPs or not), as there are two levels.
+wilcox.test (mean_TFD ~ UCP_YN, data=df_agg_creativity_UCP)
+wilcox.test (mean_First_pass ~ UCP_YN, data=df_agg_creativity_UCP)
+wilcox.test (mean_Regression ~ UCP_YN, data=df_agg_creativity_UCP)
+wilcox.test (mean_Fix_count ~ UCP_YN, data=df_agg_creativity_UCP)
+wilcox.test (mean_Reg_count ~ UCP_YN, data=df_agg_creativity_UCP)
+```
+
+#### Comparing specific types of UCP (Creative shifts vs Reproduction)
+```{r}
+wilcox.test (mean_TFD ~ Type_of_UCP, data=df_agg_creativity_Type)
+wilcox.test (mean_First_pass ~ Type_of_UCP , data=df_agg_creativity_Type)
+wilcox.test (mean_Regression ~ Type_of_UCP , data=df_agg_creativity_Type)
+wilcox.test (mean_Fix_count ~ Type_of_UCP , data=df_agg_creativity_Type)
+wilcox.test (mean_Reg_count ~ Type_of_UCP , data=df_agg_creativity_Type)
+```
+
+### Errors
+#### Error counts
+```{r}
+#First, we'll look at the question whether having errors or not influences the measurements. As this variable has two levels (Yes/No), we'll use Wilcoxon Signed Rank Test
+wilcox.test(mean_TFD ~ ErrorCount, data = df_agg_errorcount)
+wilcox.test(mean_First_pass ~ ErrorCount, data = df_agg_errorcount)
+wilcox.test(mean_Regression ~ ErrorCount, data = df_agg_errorcount)
+wilcox.test(mean_Fix_count ~ ErrorCount, data = df_agg_errorcount)
+wilcox.test(mean_Reg_count ~ ErrorCount, data = df_agg_errorcount)
+```
+
+#### Error Points
+```{r}
+#Then we'll look at the Severity of errors, as this variable has 3 levels, we'll use Friedman's Tests
+friedman.test (mean_TFD ~ Severity | Participant, data=df_agg_errorseverity)
+friedman.test (mean_First_pass ~ Severity | Participant, data=df_agg_errorseverity)
+friedman.test (mean_Regression ~ Severity | Participant, data=df_agg_errorseverity)
+friedman.test (mean_Fix_count ~ Severity | Participant, data=df_agg_errorseverity)
+friedman.test (mean_Reg_count ~ Severity | Participant, data=df_agg_errorseverity)
+
+#Total fixation durtion, first pass and fixation count all have significant results. To analyse these further we'll do Wilcoxon rank sum test with Holm-Bonferroni correction as post-hoc tests.
+
+pairwise.wilcox.test(df_agg_errorseverity$mean_TFD, df_agg_errorseverity$Severity, p.adj="holm")
+pairwise.wilcox.test(df_agg_errorseverity$mean_First_pass, df_agg_errorseverity$Severity, p.adj="holm")
+pairwise.wilcox.test(df_agg_errorseverity$mean_Fix_count, df_agg_errorseverity$Severity, p.adj="holm")
+```
+
+#### Error Types
+```{r}
+#Lastly, we'll look at the type of errors, as this variable has CHECK levels, we'll use Friedman's Tests
+friedman.test (mean_TFD ~ Error_Type | Participant, data=df_agg_errortype)
+friedman.test (mean_First_pass ~ Error_Type | Participant, data=df_agg_errortype)
+friedman.test (mean_Regression ~ Error_Type | Participant, data=df_agg_errortype)
+friedman.test (mean_Fix_count ~ Error_Type | Participant, data=df_agg_errortype)
+friedman.test (mean_Reg_count ~ Error_Type | Participant, data=df_agg_errortype)
+
+#Total fixation durtion, first pass, regression and fixation count all have significant results. To analyse these further we'll do Wilcoxon rank sum test with Holm-Bonferroni correction as post-hoc tests.
+
+pairwise.wilcox.test(df_agg_errortype$mean_TFD, df_agg_errortype$Error_Type, p.adj="holm")
+pairwise.wilcox.test(df_agg_errortype$mean_First_pass, df_agg_errortype$Error_Type, p.adj="holm")
+pairwise.wilcox.test(df_agg_errortype$mean_Regression, df_agg_errortype$Error_Type, p.adj="holm")
+pairwise.wilcox.test(df_agg_errortype$mean_Fix_count, df_agg_errortype$Error_Type, p.adj="holm")
+```
+
+# Frequency
+## Enitre dataset
+### Visualisations 
+```{r fig.width=10, fig.height=7}
+#We'll use log-transformed TFD measures for these
+df$TFD_log <- log(df$TFD+1)
+
+ggplot(df, aes(x = TFD_log, y = Freq)) +
+  geom_point(aes(color = Creativity), size = 3) + # Color points by Creativity
+  geom_smooth(method = "lm", se = FALSE, color = "blue") + # Add a trend line
+  labs(x = "Total Fixation Duration (log-transformed, in ms.)", y = "Frequency") +
+  theme_minimal()
+```
+
+### Analysis
+#### TFD
+```{r}
+#We'll run a spearman's correlation, but first we'll check for monotonicity in the frequency data (assumption of spearman) with a Cox-Stuart test
+
+cox.stuart.test(df$Freq)
+
+#p-value is < 0.05 so the assumtpion of monotonicity holds. We can now run the frequency correlation analysis
+cor.test(df$Freq, df$TFD_log, method = c("spearman"))
+```
+#### FPT
+```{r}
+#First we'll create the logarhithmic version of the dependent variable
+df$First_pass_log <- log(df$First_pass+1)
+
+cor.test(df$Freq, df$First_pass_log, method = c("spearman"))
+
+ggplot(df, aes(x = First_pass_log, y = Freq)) +
+  geom_point(aes(color = Creativity), size = 3) + # Color points by Creativity
+  geom_smooth(method = "lm", se = FALSE, color = "blue") + # Add a trend line
+  labs(x = "First Pass Times (log-transformed, in ms.)", y = "Frequency") +
+  theme_minimal()
+```
+
+#### RP
+```{r}
+#First we'll create the logarhithmic version of the dependent variable
+df$RP_log <- log(df$Regression+1)
+
+cor.test(df$Freq, df$RP_log, method = c("spearman"))
+
+ggplot(df, aes(x = RP_log, y = Freq)) +
+  geom_point(aes(color = Creativity), size = 3) + # Color points by Creativity
+  geom_smooth(method = "lm", se = FALSE, color = "blue") + # Add a trend line
+  labs(x = "Regression (log-transformed, in ms.)", y = "Frequency") +
+  theme_minimal()
+```
+
+
