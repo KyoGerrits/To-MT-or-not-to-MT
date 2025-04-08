@@ -1,0 +1,195 @@
+---
+title: "Questionnaire analysis"
+author: "Kyo Gerrits"
+date: "Generated on: `r date()`"
+output:
+  html_document:
+    code_folding: show
+    number_sections: yes
+    toc: yes
+    toc_float:
+      collapsed: no
+      smooth_scroll: yes
+---
+# Loading the libraries
+```{r}
+library(ggplot2)
+library(tidyverse)
+library(viridis)
+library(hrbrthemes)
+library(car)
+library(psych)
+library(ltm)
+library(lme4)
+library(FSA)
+library(DescTools)
+library(broom)
+library(emmeans)
+library(rstatix)
+library(carData)
+library(car)
+library(RcmdrMisc)
+library(conover.test)
+```
+
+# The dataset
+```{r}
+# First we load the dataset
+dfall <- read.csv2("Qualtrics results combined.csv", stringsAsFactors = TRUE)
+dfall
+```
+
+# Categorising the data
+```{r}
+#For the Modalities
+table(dfall$Condition) 
+levels(dfall$Condition) <- c("PE","MT","HT", "ST")
+table(dfall$Condition)
+```
+
+```{r}
+#For gender
+dfall$gender <- as.factor(dfall$Q1.1);
+  levels(dfall$gender) <- c("Female","Male","Non-binary", "Prefer not to say")
+  table(dfall$gender)
+```
+
+```{r}
+#For age, grouped
+dfall$Q1.2 <- factor(dfall$Q1.2)
+dfall$agegrp <- NULL
+dfall$agegrp[dfall$Q1.2== 2 | dfall$Q1.2==3] <- 1
+dfall$agegrp[dfall$Q1.2== 4 | dfall$Q1.2==5 ] <- 2
+dfall$agegrp[dfall$Q1.2== 6 | dfall$Q1.2==7 ] <- 3
+dfall$agegrp[dfall$Q1.2== 8 | dfall$Q1.2==9 ] <- 4
+dfall$agegrp <- as.factor(dfall$agegrp)
+levels(dfall$agegrp) <- c("18-34","35-54","55-74", "75+")
+table(dfall$agegrp)
+prop.table(table(dfall$agegrp), 1)
+```
+
+```{r}
+# For reading habits (how often participants read)
+dfall$Reading_Preference <- as.factor(dfall$Q1.7);
+  levels(dfall$Reading_Preference) <- c("Daily", "Once or twice per week", "Once a month", "Once every three months", "Never")
+  table(dfall$Reading_Preference)
+```
+
+```{r}
+colnames(dfall) <- make.names(colnames(dfall))
+```
+
+# Comprehension Questions
+```{r}
+# Descriptive values for comprehension questions
+numSummary(dfall$SC7)
+
+# means (may be more appropriate since we've ordinal data)
+tapply(dfall$SC7, dfall$Condition, mean)
+tapply(dfall$SC7, dfall$Condition, median)
+
+# Summarize the data per Condition
+dfall %>%
+  group_by(Condition) %>%
+  summarise(
+    count = n(),
+    mean = mean(SC7, na.rm = TRUE),
+    median = median(SC7, na.rm = TRUE),
+    sd = sd(SC7, na.rm = TRUE),
+    min = min(SC7, na.rm = TRUE),
+    max = max(SC7, na.rm = TRUE)
+  )
+
+# We plot the the data according to Condition
+ggplot(data =dfall,mapping = aes(x = Condition,y = SC7))+geom_boxplot(aes(fill=Condition), show.legend = FALSE)+
+     ggtitle("All") +
+    xlab("Reading condition")+
+    scale_x_discrete(labels=c("PE","MT","HT", "ST")) +
+    ylab("Comprehension score") 
+
+```
+
+
+
+# Descriptive statistics
+## Preprossessing and visualisations
+### Visualisations
+```{r}
+#For visualisations we'll combine the answers for all questions per category
+# For engagement
+dfall$engagement <- (dfall$Q3.1 + dfall$Q3.2 + dfall$Q3.3 + dfall$Q3.4+ dfall$Q3.5+ dfall$Q3.6+ dfall$Q3.7+ dfall$Q3.8+ dfall$Q3.9+ dfall$Q3.10+ dfall$Q3.11+ dfall$Q3.12 + dfall$Q3.13 + dfall$Q3.14 + dfall$Q3.15)/15
+ggplot(data =dfall,mapping = aes(x = Condition,y = engagement))+geom_boxplot(aes(fill=Condition), show.legend = FALSE)+
+     ggtitle("All") +
+    xlab("Reading condition")+
+    scale_x_discrete(labels=c("PE","MT","HT", "ST")) +
+    ylab("Narrative engagement overall")
+
+# For translation reception
+dfall$t_rep <- (dfall$Q4.1 + dfall$Q4.2 + dfall$Q4.3 + dfall$Q4.5 + dfall$Q4.7 + dfall$Q4.9+ dfall$Q4.10+ dfall$Q4.11 + dfall$Q4.12)/9
+ggplot(data =dfall,mapping = aes(x = Condition,y = t_rep))+geom_boxplot(aes(fill=Condition), show.legend = FALSE)+
+     ggtitle("All") +
+    xlab("Reading condition")+
+    scale_x_discrete(labels=c("PE","MT","HT", "ST")) +
+    ylab("Translation reception") 
+
+# For enjoyment
+dfall$enjoyment <- (dfall$Q5.1 + dfall$Q5.2 + dfall$Q5.3)/3
+ggplot(data =dfall,mapping = aes(x = Condition,y = enjoyment))+geom_boxplot(aes(fill=Condition), show.legend = FALSE)+
+     ggtitle("All") +
+    xlab("Reading condition")+
+    scale_x_discrete(labels=c("PE","MT","HT", "ST")) +
+    ylab("Enjoyment")
+```
+
+### Check validity 
+```{r}
+#We'll use Cronbach Alpha to check the internal consistency of the categories
+dataEngament <- data.frame(dfall$Q3.1, dfall$Q3.2, dfall$Q3.3, dfall$Q3.4, dfall$Q3.5, dfall$Q3.6, dfall$Q3.7, dfall$Q3.8, dfall$Q3.9, dfall$Q3.10,dfall$Q3.11, dfall$Q3.12, dfall$Q3.13, dfall$Q3.14, dfall$Q3.15)
+cronbach.alpha(dataEngament, CI=TRUE)
+dataTranslation_Reception <-data.frame(dfall$Q4.1, dfall$Q4.2, dfall$Q4.3, dfall$Q4.5, dfall$Q4.7, dfall$Q4.9, dfall$Q4.10, dfall$Q4.11, dfall$Q4.12)
+cronbach.alpha(dataTranslation_Reception, CI=TRUE, na.rm = TRUE) 
+dataEnjoyment <-data.frame(dfall$Q5.1, dfall$Q5.2, dfall$Q5.3)
+newdataEnjoyment <- na.omit(dataEnjoyment)
+cronbach.alpha(newdataEnjoyment, CI=TRUE)
+
+#The Cronbach’s alpha reliability coefficient (α) had respective scores of 0.847, 0.915, and 0.813, of which the first and third are considered good and the middle one excellent
+```
+
+### Create dataframe for analysis
+```{r}
+# For the analysis we'll use all questions separately (so not grouped to one mean per participant per category as in the visualisations). We'll first reshape the data to make sure all questions belonging to the separate categories are grouped together, for engagement, translation reception and enjoyment respectively
+long_data <- pivot_longer(
+  data = dfall,
+  cols = c("Q3.1", "Q3.2", "Q3.3", "Q3.4", "Q3.5", "Q3.6", "Q3.7" , "Q3.8", "Q3.9", "Q3.10", "Q3.11" , "Q3.12" , "Q3.13" ,"Q3.14" , "Q3.15" , "Q4.1" , "Q4.2" , "Q4.3" , "Q4.5" , "Q4.7" , "Q4.9", "Q4.10" , "Q4.11" , "Q4.12" , "Q5.1" , "Q5.2" , "Q5.3"),
+  names_to = "Question",
+  values_to = "Score"
+)
+# Then we'll join the questions to the correct category
+long_data$Category <- case_when(
+  long_data$Question %in% c("Q3.1", "Q3.2", "Q3.3", "Q3.4", "Q3.5", "Q3.6", "Q3.7" , "Q3.8", "Q3.9", "Q3.10", "Q3.11" , "Q3.12" , "Q3.13" ,"Q3.14" , "Q3.15") ~ "Engagement",
+  long_data$Question %in% c("Q4.1" , "Q4.2" , "Q4.3" , "Q4.5" , "Q4.7" , "Q4.9", "Q4.10" , "Q4.11" , "Q4.12") ~ "Translation Reception",
+  long_data$Question %in% c("Q5.1" , "Q5.2" , "Q5.3") ~ "Enjoyment",
+  TRUE ~ "Other"
+)
+```
+
+ 
+
+## Create descriptive statistics
+
+```{r}
+# Then we'll create a table to show the descriptive statistics, including, n, mean, sd, median, min and max per condition for all questions.
+stats <- long_data %>%
+  group_by(Condition, Category) %>%
+  summarise(
+    count = n(),
+    mean = mean(Score, na.rm = TRUE),
+    sd = sd(Score, na.rm = TRUE),
+    median = median(Score, na.rm=TRUE),
+    min = min(Score, na.rm = TRUE),
+    max = max(Score, na.rm = TRUE)
+  )
+print(stats)
+
+```
+
