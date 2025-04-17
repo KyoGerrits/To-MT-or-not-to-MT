@@ -1574,7 +1574,7 @@ font-size: 0.95em;
 
 <h1 class="title toc-ignore">Questionnaire analysis</h1>
 <h4 class="author">Kyo Gerrits</h4>
-<h4 class="date">Generated on: Fri Apr 4 08:49:07 2025</h4>
+<h4 class="date">Generated on: Thu Apr 17 14:55:20 2025</h4>
 
 </div>
 
@@ -1718,16 +1718,16 @@ dfall</code></pre>
 <pre><code>##      X       StartDate         EndDate Status       IPAddress Progress
 ## 1 P09A 10-5-2024 11:37 10-5-2024 11:48      0  145.90.140.210      100
 ## 2 P05A  3-5-2024 05:29  3-5-2024 05:50      0 145.100.228.138      100
-## 3 P02B 13-6-2024 13:54 13-6-2024 14:07      0  145.90.140.210      100
+## 3 P02B 13-5-2024 13:54 13-5-2024 14:07      0  145.90.140.210      100
 ## 4 P07B 15-5-2024 08:56 15-5-2024 09:10      0  145.90.139.169      100
 ## 5 P03C  1-5-2024 02:01  1-5-2024 02:42      0    145.97.191.9      100
 ## 6 P06C 13-5-2024 07:32 13-5-2024 07:50      0  145.100.224.81      100
 ## 7 P04D  3-5-2024 02:11  3-5-2024 03:14      0 145.100.228.138      100
 ## 8 P08D 21-5-2024 04:23 21-5-2024 04:31      0  77.165.163.148      100
 ##   Duration..in.seconds. Finished    RecordedDate        ResponseId
-## 1                   674        1 22-6-2023 01:48 R_3j97eBYplkB2Gar
+## 1                   674        1 10-5-2024 11:48 R_3j97eBYplkB2Gar
 ## 2                  1252        1  3-5-2024 05:50 R_2mgyjZK29y0Vlx0
-## 3                  6153        1 22-6-2023 04:22 R_u3btJRBrhJjz0KB
+## 3                  6153        1 13-5-2024 14:07 R_u3btJRBrhJjz0KB
 ## 4                   831        1 15-5-2024 09:10 R_4QSa5Vi9OPHduJY
 ## 5                  2431        1  1-5-2024 02:42 R_2QHKXbC63b4WmhX
 ## 6                  1090        1 13-5-2024 07:50 R_7COX9A3SRHscV9L
@@ -1996,7 +1996,7 @@ cronbach.alpha(dataEngament, CI=TRUE)</code></pre>
 ## 
 ## Bootstrap 95% CI based on 1000 samples
 ##  2.5% 97.5% 
-## 0.542 0.933</code></pre>
+## 0.559 0.935</code></pre>
 <pre class="r"><code>dataTranslation_Reception &lt;-data.frame(dfall$Q4.1, dfall$Q4.2, dfall$Q4.3, dfall$Q4.5, dfall$Q4.7, dfall$Q4.9, dfall$Q4.10, dfall$Q4.11, dfall$Q4.12)
 cronbach.alpha(dataTranslation_Reception, CI=TRUE, na.rm = TRUE) </code></pre>
 <pre><code>## 
@@ -2008,7 +2008,7 @@ cronbach.alpha(dataTranslation_Reception, CI=TRUE, na.rm = TRUE) </code></pre>
 ## 
 ## Bootstrap 95% CI based on 1000 samples
 ##  2.5% 97.5% 
-## 0.715 0.958</code></pre>
+## 0.692 0.957</code></pre>
 <pre class="r"><code>dataEnjoyment &lt;-data.frame(dfall$Q5.1, dfall$Q5.2, dfall$Q5.3)
 newdataEnjoyment &lt;- na.omit(dataEnjoyment)
 cronbach.alpha(newdataEnjoyment, CI=TRUE)</code></pre>
@@ -2021,7 +2021,7 @@ cronbach.alpha(newdataEnjoyment, CI=TRUE)</code></pre>
 ## 
 ## Bootstrap 95% CI based on 1000 samples
 ##   2.5%  97.5% 
-## -0.511  0.936</code></pre>
+## -0.447  0.933</code></pre>
 <pre class="r"><code>#The Cronbach’s alpha reliability coefficient (α) had respective scores of 0.847, 0.915, and 0.813, of which the first and third are considered good and the middle one excellent</code></pre>
 </div>
 <div id="create-dataframe-for-analysis" class="section level3" number="5.1.3">
